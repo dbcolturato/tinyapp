@@ -20,4 +20,14 @@ const checkEmail = (dataBase, email) => {
   return false;
 }
 
-module.exports = { getUser, checkEmail }
+const urlsForUser = (dataBase, id) => {
+  let user_URLs = {};
+  for (const db_id in dataBase) {
+    if (dataBase[db_id].userID === id) {
+      user_URLs[db_id] = dataBase[db_id];
+    }
+  }
+  return user_URLs;
+} 
+
+module.exports = { getUser, checkEmail, urlsForUser }

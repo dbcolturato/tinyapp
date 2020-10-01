@@ -10,7 +10,8 @@
 </head>
 <body>
   <%- include('partials/_header') %>
-  <main style="margin: 1em;">
+  <main style="margin: 1em;"></main>
+  <% if (user) { %>
     <h3>My URLs</h3>
     <table class="table">
       <thead>
@@ -25,14 +26,16 @@
         <% for(let url in urls) { %>
           <tr>
             <td><%= url %></td>
-            <td><%= urls[url] %></td>
+            <td><%= urls[url].longURL %></td>
             <td><form method="GET" action='/urls/<%=url%>'> <button type="submit" class="btn btn-primary">EDIT</button></form></td>
             <td><form method="POST" action='/urls/<%=url%>/delete'> <button type="submit" class="btn btn-primary">DELETE</button></form></td>
           </tr>
         <% } %>
       </tbody>
     </table>
-    <!-- <a href="#">Add another URL</a> -->
+  <% } else {%>
+    <h4>You need to be logged in to see the URLs</h4>
+  <% } %>
   </main>
   <!-- Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
