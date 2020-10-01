@@ -2,7 +2,9 @@ const express = require("express");
 const app = express();
 const PORT = 8080;
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcrypt');
 
+const saltRounds = 10;
 app.set("view engine", "ejs");
 app.use(cookieParser());
 
@@ -22,12 +24,12 @@ const users = {
   "gdhdk6": {
     id: "gdhdk6",
     email: "bob@example.com",
-    password: "foo"
+    password: "$2b$10$0.HPs2fNBjyV62iLOxCfbOsLFh3Ob90kOGL9ecldAWTLa2NIaXiQG" //foo
   },
   "abcd5g": {
     id: "abcd5g",
     email: "cloe@example.com",
-    password: "boo"
+    password: "$2b$10$WgQYHnv6bfRc3ZlkZfvtT.qEvUyKbEYCg3NMP1opTitjNjmVsp.7O" //boo
   }
 }
 
@@ -36,7 +38,12 @@ function generateRandomString() {
 }
 
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  const userID = req.cookies["user_id"];
+  if (userID) {
+    res.redirect('/urls');
+  } else {
+    res.redirect('/login');
+  }
 });
 
 app.get("/urls.json", (req, res) => {
@@ -72,6 +79,9 @@ app.get("/register", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
+  
+  const salt = bcrypt.genSaltSync(saltRounds);
+  // Generate a random id
   const id = generateRandomString();
   const { email, password } = req.body;
 
@@ -80,7 +90,8 @@ app.post("/register", (req, res) => {
     res.render("error", { user: null, message: "Invalid registration data." });
   } else {
     res.cookie('user_id', id);
-    users[id] = { id, email, password };
+    users[id] = { id, email, password: bcrypt.hashSync(password, salt) };
+    console.log(bcrypt.hashSync(password, salt));
     res.redirect('/urls');
   }
 });

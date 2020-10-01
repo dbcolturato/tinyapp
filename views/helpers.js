@@ -1,8 +1,10 @@
+const bcrypt = require('bcrypt');
+
 const getUser = (dataBase, email, password) => {
   for (const user_id in dataBase) {
     const currentUser = dataBase[user_id];
     if (currentUser.email === email) {
-      if (currentUser.password === password) {
+      if (bcrypt.compareSync(password, currentUser.password)) { //password === currentUser.password
         return currentUser;
       }
     }
