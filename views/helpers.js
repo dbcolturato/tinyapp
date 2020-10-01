@@ -12,11 +12,11 @@ const getUser = (dataBase, email, password) => {
   return null;
 }
 
-const checkEmail = (dataBase, email) => {
+const getUserByEmail = (dataBase, email) => {
   for (const user_id in dataBase) {
     const currentUser = dataBase[user_id];
     if (currentUser.email === email) {
-      return true; //email matching
+      return currentUser; //email matching
     }
   }
   return false;
@@ -32,4 +32,4 @@ const urlsForUser = (dataBase, id) => {
   return user_URLs;
 } 
 
-module.exports = { getUser, checkEmail, urlsForUser }
+module.exports = { getUser, getUserByEmail, urlsForUser }
