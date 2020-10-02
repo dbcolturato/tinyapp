@@ -9,10 +9,8 @@ const saltRounds = 10;
 app.set("view engine", "ejs");
 app.use(cookieParser());
 
-//convert the request body from a Buffer into string that we can read
-//It will then add the data to the req(request) object under the key body
 const bodyParser = require("body-parser");
-const { getUserByEmail, getUser, urlsForUser } = require("./views/helpers");
+const { getUserByEmail, getUser, urlsForUser } = require("./helpers");
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // cookie session config
@@ -63,8 +61,13 @@ app.get("/urls.json", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-  const templateVars = { user: users[req.session["user_id"]] };
-  res.render("login", templateVars);
+  const userID = req.session["user_id"];
+  if (userID) {
+    res.redirect('/urls');
+  } else {
+    const templateVars = { user: users[req.session["user_id"]] };
+    res.render("login", templateVars);
+  }
 });
 
 app.post('/login', (req, res) => {
@@ -73,7 +76,6 @@ app.post('/login', (req, res) => {
   const user = getUser(users, email, password);
   if (user) {
     req.session.user_id = user.id;
-    //res.cookie('user_id', user.id);
     res.redirect('/urls');
   } else {
     res.status(403);
@@ -83,28 +85,33 @@ app.post('/login', (req, res) => {
 
 app.post('/logout', (req, res) => {
   req.session.user_id = null;
-  // res.clearCookie('user_id');
   res.redirect('/urls');
 });
 
 app.get("/register", (req, res) => {
-  const templateVars = { user: users[req.session["user_id"]] };
-  res.render("register", templateVars);
+  const userID = req.session["user_id"];
+  if (userID) {
+    res.redirect('/urls');
+  } else {
+    const templateVars = { user: users[req.session["user_id"]] };
+    res.render("register", templateVars);
+  }
 });
 
 app.post("/register", (req, res) => {
-  
   const salt = bcrypt.genSaltSync(saltRounds);
   // Generate a random id
   const id = generateRandomString();
   const { email, password } = req.body;
 
-  if (getUserByEmail(users, email) || (email === "") || (password === "")) {
+  if (getUserByEmail(users, email)) {
+    res.status(400);
+    res.render("error", { user: null, message: "E-mail already in use." });
+  } else if ((email === "") || (password === "")) {
     res.status(400);
     res.render("error", { user: null, message: "Invalid registration data." });
   } else {
     req.session.user_id = id;
-    // res.cookie('user_id', id);
     users[id] = { id, email, password: bcrypt.hashSync(password, salt) };
     res.redirect('/urls');
   }
@@ -141,16 +148,24 @@ app.get("/urls/new", (req, res) => {
 
 app.get("/urls/:shortURL", (req, res) => {
   const userID = req.session["user_id"];
-  if (userID) {
-    const userUrls = urlsForUser(urlDatabase, userID);
-    if (userUrls[req.params.shortURL]) {
-      const templateVars = { shortURL: req.params.shortURL, longURL: userUrls[req.params.shortURL].longURL, user: users[userID] };
-      res.render("urls_show", templateVars);
-      return;
-    }
+  if (!userID) {
+    res.render("error", { user: null, message: "You need to be logged in to see the URLs." });
+    return;
   }
 
-  res.render("error", { user: null, message: "You need to be logged in to see the URLs." });
+  if (!urlDatabase[req.params.shortURL]) {
+    res.render("error", { user: users[userID], message: "URL does not exist." });
+    return;
+  }
+
+  const userUrls = urlsForUser(urlDatabase, userID);
+  if (userUrls[req.params.shortURL]) {
+    const templateVars = { shortURL: req.params.shortURL, longURL: userUrls[req.params.shortURL].longURL, user: users[userID] };
+    res.render("urls_show", templateVars);
+    return;
+  }
+
+  res.render("error", { user: users[userID], message: "You don't own the URL for the given ID." });
 });
 
 app.post('/urls/:shortURL/delete', (req, res) => {
@@ -161,37 +176,37 @@ app.post('/urls/:shortURL/delete', (req, res) => {
       delete urlDatabase[req.params.shortURL];
       res.redirect('/urls');
       return;
+    } else {
+      res.render("error", { user: users[userID], message: "You don't own the URL for the given ID." });
     }
   }
-
-  res.status(401).send("Unauthorized to delete URL");
+  res.status(401).render("error", { user: null, message: "Unauthorized to delete URL." });
 });
 
 app.post('/urls/:shortURL', (req, res) => {
   const userID = req.session["user_id"];
   if (userID) {
     const userUrls = urlsForUser(urlDatabase, userID);
-    console.log(userUrls);
     if (userUrls[req.params.shortURL]) {
       urlDatabase[req.params.shortURL] = {};
       urlDatabase[req.params.shortURL].longURL = req.body.longURL;
       urlDatabase[req.params.shortURL].userID = userID;
       res.redirect('/urls');
       return;
+    } else {
+      res.render("error", { user: users[userID], message: "You don't own the URL for the given ID." });
     }
   }
-
-  res.status(401).send("Unauthorized to edit URL");
+  res.status(401).render("error", { user: null, message: "Unauthorized to delete URL." });
 });
 
 app.get("/u/:shortURL", (req, res) => {
-
-  const longURL = urlDatabase[req.params.shortURL].longURL;
-  if (longURL) {
-    res.redirect(longURL);
+  const url = urlDatabase[req.params.shortURL];
+  if (url && url.longURL) {
+    res.redirect(url.longURL);
+    return;
   }
-
-  res.status(404).send(`Long URL not found for short URL '${req.params.shortURL}'`);
+  res.render("error", { user: users[req.session["user_id"]], message: `Long URL not found for short URL "${req.params.shortURL}".` });
 });
 
 app.listen(PORT, () => {
